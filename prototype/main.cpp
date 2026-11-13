@@ -153,7 +153,8 @@ public:
     Q_INVOKABLE bool rtlVersionKnown(int index) const
     {
         const auto version = installedRelease(index);
-        return version.isEmpty() || version == (index == 0 ? "2.31.2" : "2.7.0");
+        return version.isEmpty() ||
+            (index == 0 ? (version == "2.31.2" || version == "2.32.0") : version == "2.7.0");
     }
     Q_INVOKABLE void toggleRtl(int index)
     {

@@ -222,7 +222,11 @@ bool supportsRtl(int product)
     const QByteArray supported = ide
         ? "9c4202bf3deada931660486fb591faa4665ceb7cbcb9a4a6074c24eb446c6be8"
         : "94452cf0ce71bb4c21cfbdd51b31c0c6404e7aeb99539bdecce8954175b9dbaf";
-    return entry.open(QIODevice::ReadOnly) && hash.addData(&entry) && hash.result().toHex() == supported;
+    if (!entry.open(QIODevice::ReadOnly) || !hash.addData(&entry))
+        return false;
+    const auto fingerprint = hash.result().toHex();
+    return fingerprint == supported || (!ide &&
+        fingerprint == "bd1fcf2588ab1d92b308734b5cfa9053efcecc0ad3ec6ce1b09b3b1eaa92b792");
 }
 
 QString setInstallationRtl(int product, bool enable)

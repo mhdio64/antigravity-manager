@@ -67,6 +67,14 @@ win.webContents.on('console-message', (event, ...args) => {
 
                 function init() {
                     const fontBase64 = '${fontBase64}';
+                    // Load bytes directly so the page does not need to allow a data: font URL.
+                    const persianRange = 'U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF';
+                    const fontBytes = Uint8Array.from(atob(fontBase64), c => c.charCodeAt(0));
+                    const persianFont = new FontFace('AntigravityVazirmatn', fontBytes, {
+                        weight: '100 900',
+                        unicodeRange: persianRange
+                    });
+                    persianFont.load().then(font => document.fonts.add(font)).catch(() => {});
                 const rtlConfig = ${JSON.stringify(rtlConfig)};
                 
                 // 2. Observer Logic
@@ -385,10 +393,10 @@ win.webContents.on('console-message', (event, ...args) => {
                 
                 const updateDynamicCSS = (faFont, enFont, codeFont, lh, fs) => {
                     let faFontRule = '';
-                    let faFontName = "'PersianOnlyFont'";
+                    let faFontName = "'AntigravityVazirmatn', 'PersianOnlyFont'";
                     
                     if (faFont) {
-                        faFontName = "'UserPersianFont', 'PersianOnlyFont'";
+                        faFontName = "'UserPersianFont', 'AntigravityVazirmatn', 'PersianOnlyFont'";
                         // Remove '-Regular' or ' Regular' if user typed it, to find the base family name
                         let baseFaFont = faFont.replace(/[-\\s]?Regular$/i, '');
                         
@@ -430,7 +438,8 @@ win.webContents.on('console-message', (event, ...args) => {
                         \${faFontRule}
                         @font-face {
                             font-family: 'PersianOnlyFont';
-                            src: url('data:font/woff2;base64,\${fontBase64}') format('woff2');
+                            src: local('Vazirmatn'), local('Vazirmatn Regular'),
+                                 url('data:font/woff2;base64,\${fontBase64}') format('woff2');
                             font-weight: 100 900;
                             unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
                         }
