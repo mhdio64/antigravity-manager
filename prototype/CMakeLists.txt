@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(antigravity-release-check VERSION 0.9.0 LANGUAGES CXX)
+project(antigravity-release-check VERSION 0.9.1 LANGUAGES CXX)
 
 find_package(Qt6 6.4.2 REQUIRED COMPONENTS Quick Network Concurrent)
 find_package(LibArchive REQUIRED)
