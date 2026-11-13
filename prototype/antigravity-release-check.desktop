@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Antigravity Release Check
+Exec=antigravity-release-check
+Categories=Utility;
