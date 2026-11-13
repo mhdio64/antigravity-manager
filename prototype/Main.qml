@@ -7,8 +7,10 @@ ApplicationWindow {
     function label(english, persian) { return releases.persian ? persian : english }
     LayoutMirroring.enabled: releases.persian
     LayoutMirroring.childrenInherit: true
-    width: 620
-    height: 650
+    width: 820
+    minimumWidth: 420
+    height: 690
+    minimumHeight: 400
     visible: true
     title: label("Antigravity Release Check", "مدیر آنتی‌گراویتی")
 
@@ -98,45 +100,152 @@ ApplicationWindow {
             width: parent.width
             spacing: 16
 
-            ComboBox {
-                model: ["English", "فارسی"]
-                currentIndex: releases.persian ? 1 : 0
-                enabled: !releases.busy
-                Accessible.name: label("Interface language", "زبان رابط")
-                onActivated: releases.persian = currentIndex === 1
+            Label {
+                text: label("Your applications", "برنامه‌های شما")
+                font.pixelSize: 30
+                font.weight: Font.DemiBold
             }
 
-            Button {
-                text: label("Check Linux x64 releases", "بررسی نسخه‌های لینوکس x64")
-                enabled: !releases.busy
-                onClicked: releases.check()
+            Flow {
+                width: parent.width
+                spacing: 10
+                Button {
+                    text: label("Check for updates", "بررسی به‌روزرسانی")
+                    enabled: !releases.busy
+                    onClicked: releases.check()
+                }
+                ComboBox {
+                    model: ["English", "فارسی"]
+                    currentIndex: releases.persian ? 1 : 0
+                    enabled: !releases.busy
+                    Accessible.name: label("Interface language", "زبان رابط")
+                    onActivated: releases.persian = currentIndex === 1
+                }
             }
 
             Repeater {
                 model: releases.results
-                delegate: Column {
+                delegate: Frame {
+                    id: card
                     required property string modelData
                     required property int index
+                    property bool expanded: false
+                    readonly property bool isInstalled: { releases.results; return releases.installed(index) }
+                    readonly property string version: { releases.results; return releases.localVersion(index) }
+                    readonly property bool updateAvailable: {
+                        card.modelData
+                        return card.isInstalled && card.version.length > 0 && releases.canUpdate(index)
+                    }
+                    readonly property bool current: {
+                        card.modelData
+                        return card.isInstalled && card.version.length > 0
+                            && releases.available(index) && !releases.canUpdate(index)
+                    }
                     width: parent.width
-
-                    TextEdit {
-                        width: parent.width
-                        LayoutMirroring.enabled: false
-                        horizontalAlignment: Text.AlignLeft
-                        text: modelData
-                        textFormat: TextEdit.PlainText
-                        wrapMode: TextEdit.WrapAnywhere
-                        readOnly: true
-                        selectByMouse: true
-                        color: systemColors.text
+                    padding: 20
+                    background: Rectangle {
+                        radius: 14
+                        color: systemColors.base
+                        border.color: card.updateAvailable ? systemColors.highlight : systemColors.mid
                     }
 
+                    contentItem: Column {
+                        spacing: 12
+                        Label {
+                            width: parent.width
+                            text: card.index === 0 ? "Antigravity App" : "Antigravity IDE"
+                            font.pixelSize: 22
+                            font.weight: Font.DemiBold
+                        }
+                        Label {
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            color: systemColors.windowText
+                            text: card.isInstalled
+                                ? (card.version.length ? label("Installed · ", "نصب‌شده · ") + "\u2066" + card.version + "\u2069"
+                                                       : label("Installed · version unknown", "نصب‌شده · نسخه نامشخص"))
+                                : label("Not installed", "نصب نشده")
+                        }
+                        Rectangle {
+                            width: Math.min(parent.width, releaseStatus.implicitWidth + 20)
+                            height: releaseStatus.implicitHeight + 10
+                            radius: 7
+                            color: card.updateAvailable ? systemColors.highlight
+                                : card.current ? Qt.tint(systemColors.base,
+                                    Qt.rgba(systemColors.highlight.r, systemColors.highlight.g,
+                                            systemColors.highlight.b, 0.14))
+                                : systemColors.base
+                            Label {
+                                id: releaseStatus
+                                width: parent.width - 20
+                                anchors.centerIn: parent
+                                wrapMode: Text.Wrap
+                                color: card.updateAvailable ? systemColors.highlightedText : systemColors.text
+                                font.weight: card.current || card.updateAvailable ? Font.DemiBold : Font.Normal
+                                text: card.updateAvailable ? label("Update available", "به‌روزرسانی موجود است")
+                                    : card.current ? label("Up to date", "به‌روز است")
+                                    : card.modelData.split("\n")[0]
+                            }
+                        }
                     Label {
-                        property string version: { releases.results; return releases.localVersion(index) }
-                        text: version.length ? label("Installed version: ", "نسخهٔ نصب‌شده: ") + "\u2066" + version + "\u2069" : label("Installed version unknown", "نسخهٔ نصب‌شده نامشخص است")
-                        visible: { releases.results; return releases.installed(index) }
+                        property string detected: { releases.results; return releases.externalInstall(index) }
+                        visible: detected.length > 0
+                        width: parent.width
+                        wrapMode: Text.WrapAnywhere
+                        text: label("Existing installation found: ", "نصب قبلی پیدا شد: ") + "\u2066" + detected + "\u2069"
                     }
-
+                        Flow {
+                            width: parent.width
+                            spacing: 8
+                        Button {
+                            text: label("Launch", "اجرا")
+                            highlighted: !card.updateAvailable
+                            visible: { releases.results; return releases.installed(index) }
+                            enabled: !releases.busy
+                            onClicked: releases.launch(index)
+                        }
+                        Button {
+                            text: { releases.results; return releases.installed(index) ? label("Update", "به‌روزرسانی") : label("Install", "نصب") }
+                            highlighted: !card.isInstalled || card.updateAvailable
+                            enabled: { releases.results; return !releases.busy && releases.canUpdate(index) }
+                            onClicked: {
+                                if (releases.rtlEnabled(index) || releases.rtlPending(index)) {
+                                    confirmUpdate.productIndex = index
+                                    confirmUpdate.open()
+                                } else if (releases.externalInstall(index).length) {
+                                    confirmMigration.productIndex = index
+                                    confirmMigration.open()
+                                } else {
+                                    releases.install(index)
+                                }
+                            }
+                        }
+                            Button {
+                                text: card.expanded ? label("Hide details", "بستن جزئیات") : label("Details", "جزئیات")
+                                flat: true
+                                onClicked: card.expanded = !card.expanded
+                            }
+                        }
+                        Column {
+                            visible: card.expanded
+                            width: parent.width
+                            spacing: 10
+                            Label {
+                                visible: card.updateAvailable
+                                text: card.modelData.split("\n")[0]
+                            }
+                            TextEdit {
+                                width: parent.width
+                                LayoutMirroring.enabled: false
+                                horizontalAlignment: Text.AlignLeft
+                                text: card.modelData.split("\n").slice(1).join("\n")
+                                visible: text.length > 0
+                                textFormat: TextEdit.PlainText
+                                wrapMode: TextEdit.WrapAnywhere
+                                readOnly: true
+                                selectByMouse: true
+                                color: systemColors.text
+                            }
                     Column {
                         property string folder: { releases.results; return releases.installFolder(index) }
                         width: parent.width
@@ -159,29 +268,10 @@ ApplicationWindow {
                         }
                     }
 
-                    Row {
-                        spacing: 8
-                        Button {
-                            text: label("Launch", "اجرا")
-                            visible: { releases.results; return releases.installed(index) }
-                            enabled: !releases.busy
-                            onClicked: releases.launch(index)
-                        }
-                        Button {
-                            text: { releases.results; return releases.installed(index) ? label("Update", "به‌روزرسانی") : label("Install", "نصب") }
-                            enabled: { releases.results; return !releases.busy && releases.canUpdate(index) }
-                            onClicked: {
-                                if (releases.rtlEnabled(index) || releases.rtlPending(index)) {
-                                    confirmUpdate.productIndex = index
-                                    confirmUpdate.open()
-                                } else if (releases.externalInstall(index).length) {
-                                    confirmMigration.productIndex = index
-                                    confirmMigration.open()
-                                } else {
-                                    releases.install(index)
-                                }
-                            }
-                        }
+                            Flow {
+                                visible: card.isInstalled
+                                width: parent.width
+                                spacing: 8
                         Button {
                             text: label("Restore previous version", "بازگردانی نسخهٔ قبلی")
                             enabled: { releases.results; return !releases.busy && releases.canRollback(index) }
@@ -195,14 +285,7 @@ ApplicationWindow {
                                 confirmRemoval.open()
                             }
                         }
-                    }
-                    Label {
-                        property string detected: { releases.results; return releases.externalInstall(index) }
-                        visible: detected.length > 0
-                        width: parent.width
-                        wrapMode: Text.WrapAnywhere
-                        text: label("Existing installation found: ", "نصب قبلی پیدا شد: ") + "\u2066" + detected + "\u2069"
-                    }
+                            }
                     Button {
                         text: {
                             releases.results
@@ -232,6 +315,8 @@ ApplicationWindow {
                         width: parent.width
                         wrapMode: Text.Wrap
                     }
+                        }
+                    }
                 }
             }
 
@@ -248,20 +333,24 @@ ApplicationWindow {
                 to: 100
                 value: Math.max(0, releases.progress)
             }
-            Button {
-                text: label("Save support report", "ذخیرهٔ گزارش پشتیبانی")
-                onClicked: reportFile.open()
+            Flow {
+                width: parent.width
+                spacing: 8
+                Button {
+                    text: label("Save support report", "ذخیرهٔ گزارش پشتیبانی")
+                    onClicked: reportFile.open()
+                }
+                Button {
+                    text: label("Sign-in help", "راهنمای ورود")
+                    onClicked: Qt.openUrlExternally("https://antigravity.google/docs/faq/")
+                }
+                Button {
+                    visible: releases.managerUpdate.toString().length > 0
+                    text: label("Download manager update", "دریافت به‌روزرسانی مدیر")
+                    onClicked: releases.openManagerUpdate()
+                }
             }
-            Label { id: reportStatus }
-            Button {
-                text: label("Sign-in help", "راهنمای ورود")
-                onClicked: Qt.openUrlExternally("https://antigravity.google/docs/faq/")
-            }
-            Button {
-                visible: releases.managerUpdate.toString().length > 0
-                text: label("Download manager update", "دریافت به‌روزرسانی مدیر")
-                onClicked: releases.openManagerUpdate()
-            }
+            Label { id: reportStatus; visible: text.length > 0 }
         }
     }
 

@@ -4,6 +4,7 @@
 #include <QCoreApplication>
 #include <QFutureWatcher>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -502,6 +503,8 @@ int main(int argc, char **argv)
     }
 
     QGuiApplication app(argc, argv);
+    QGuiApplication::setDesktopFileName("antigravity-release-check");
+    QGuiApplication::setWindowIcon(QIcon(":/icons/antigravity-release-check.png"));
     Releases releases;
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("releases", &releases);
