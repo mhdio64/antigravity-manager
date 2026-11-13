@@ -239,12 +239,20 @@ QString setInstallationRtl(int product, bool enable)
     const bool ide = product == 1;
     if (enable && !supportsRtl(product))
         return "RTL is not verified for this installation.";
-    const auto node = QStandardPaths::findExecutable("node");
+    const QString miseData = qEnvironmentVariable("MISE_DATA_DIR",
+        qEnvironmentVariable("XDG_DATA_HOME", QDir::homePath() + "/.local/share") + "/mise");
+    QString node;
+    for (const auto &candidate : {QStandardPaths::findExecutable("node"), miseData + "/shims/node"}) {
+        if (!QFileInfo(candidate).isExecutable())
+            continue;
+        QProcess runtime;
+        runtime.start(candidate, {"-e", "const [major,minor]=process.versions.node.split('.').map(Number); process.exit(major>22 || major===22 && minor>=12 ? 0 : 1)"});
+        if (runtime.waitForFinished(5000) && runtime.exitStatus() == QProcess::NormalExit && runtime.exitCode() == 0) {
+            node = candidate;
+            break;
+        }
+    }
     if (node.isEmpty())
-        return "RTL requires Node.js 22.12 or newer on PATH.";
-    QProcess runtime;
-    runtime.start(node, {"-e", "const [major,minor]=process.versions.node.split('.').map(Number); process.exit(major>22 || major===22 && minor>=12 ? 0 : 1)"});
-    if (!runtime.waitForFinished(5000) || runtime.exitStatus() != QProcess::NormalExit || runtime.exitCode() != 0)
         return "RTL requires Node.js 22.12 or newer on PATH.";
     const auto script = QDir(QCoreApplication::applicationDirPath())
         .absoluteFilePath("../share/antigravity-release-check/rtl/managed.mjs");
