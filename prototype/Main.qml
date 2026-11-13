@@ -303,14 +303,18 @@ ApplicationWindow {
                         onClicked: releases.toggleRtl(index)
                     }
                     Label {
-                        visible: { releases.results; return releases.rtlPending(index) }
+                        visible: {
+                            releases.results
+                            return card.isInstalled && !releases.rtlEnabled(index)
+                                && (releases.rtlPending(index) || !releases.rtlVersionKnown(index))
+                        }
                         text: {
                             releases.results
                             return releases.rtlVersionKnown(index)
                                 ? label("RTL was enabled before the update. Enable it again if you want to keep it.",
                                         "راست‌چین پیش از به‌روزرسانی فعال بود. اگر هنوز آن را می‌خواهید، دوباره فعالش کنید.")
-                                : label("RTL preference saved. Compatibility with this version is unverified.",
-                                        "انتخاب راست‌چین ذخیره شد. سازگاری با این نسخه هنوز تأیید نشده است.")
+                                : label("RTL compatibility with this version is unverified.",
+                                        "سازگاری راست‌چین با این نسخه هنوز تأیید نشده است.")
                         }
                         width: parent.width
                         wrapMode: Text.Wrap
